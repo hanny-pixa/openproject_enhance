@@ -17,191 +17,90 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
     
+    - name: Create package directory
+      run: |
+        mkdir -p openproject-enhanced-modules
+    
+    - name: Copy modules
+      run: |
+        cp -r modules openproject-enhanced-modules/
+    
+    - name: Copy config file
+      run: |
+        cp Gemfile.plugins.local openproject-enhanced-modules/
+    
+    - name: Create install script
+      run: |
+        cat > openproject-enhanced-modules/INSTALL.sh << 'EOF'
+        #!/bin/bash
+        set -e
+        echo "OpenProject Enhanced Modules Installer"
+        echo "Usage: bash INSTALL.sh <openproject_dir>"
+        OP_DIR="${1:-/app}"
+        SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+        echo "Installing to: $OP_DIR"
+        cp -r "$SCRIPT_DIR/modules/"* "$OP_DIR/modules/"
+        cp "$SCRIPT_DIR/Gemfile.plugins.local" "$OP_DIR/"
+        cd "$OP_DIR"
+        bundle config set without 'development test'
+        bundle install --jobs 4 --retry 3
+        bundle exec rake db:migrate RAILS_ENV=production
+        echo "Installation complete!"
+        EOF
+        chmod +x openproject-enhanced-modules/INSTALL.sh
+    
+    - name: Create README
+      run: |
+        cat > openproject-enhanced-modules/README.md << 'EOF'
+        # OpenProject Enhanced Modules
+        
+        ## Modules Included
+        
+        1. Database Manager - Multi-database management, backup/restore
+        2. Analytics - Project statistics and reports
+        3. MS Project Import/Export - Excel/XML/MS Project format support
+        
+        ## Installation
+        
+        ```bash
+        # Extract
+        tar -xzf openproject-enhanced-modules-*.tar.gz
+        cd openproject-enhanced-modules
+        
+        # Install (replace /app with your OpenProject path)
+        bash INSTALL.sh /app
+        ```
+        
+        ## Requirements
+        
+        - OpenProject: 15.0.0
+        - Ruby: 3.2.x
+        - PostgreSQL: 13+
+        EOF
+    
     - name: Create package
       run: |
-        echo "📦 Creating enhanced modules package..."
-        
-        # 创建包目录
-        mkdir -p openproject-enhanced-modules
-        
-        # 复制模块
-        cp -r modules openproject-enhanced-modules/
-        
-        # 复制配置文件
-        cp Gemfile.plugins.local openproject-enhanced-modules/
-        
-        # 创建安装脚本
-        cat > openproject-enhanced-modules/INSTALL.sh << 'SCRIPT'
-#!/bin/bash
-set -e
-
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-BLUE='\033[0;34m'
-NC='\033[0m'
-
-log_info() { echo -e "${BLUE}[INFO]${NC} $1"; }
-log_success() { echo -e "${GREEN}[SUCCESS]${NC} $1"; }
-log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
-
-echo "╔════════════════════════════════════════════════════════╗"
-echo "║   OpenProject 增强模块安装工具                          ║"
-echo "╚════════════════════════════════════════════════════════╝"
-echo ""
-
-if [ -z "$1" ]; then
-    log_error "用法：$0 <OpenProject 源码目录>"
-    echo ""
-    echo "示例：$0 /app"
-    echo "      $0 /var/www/openproject"
-    exit 1
-fi
-
-OP_DIR="$1"
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
-# 检查 OpenProject 目录
-if [ ! -d "$OP_DIR" ]; then
-    log_error "目录不存在：$OP_DIR"
-    exit 1
-fi
-
-if [ ! -f "$OP_DIR/Gemfile" ]; then
-    log_error "不是有效的 OpenProject 目录（缺少 Gemfile）"
-    exit 1
-fi
-
-log_info "目标目录：$OP_DIR"
-
-# 1. 复制模块
-log_info "步骤 1/3: 复制增强模块..."
-mkdir -p "$OP_DIR/modules"
-cp -r "$SCRIPT_DIR/modules/"* "$OP_DIR/modules/"
-log_success "模块复制完成"
-
-# 2. 配置 Gemfile
-log_info "步骤 2/3: 配置 Gemfile.plugins.local..."
-cp "$SCRIPT_DIR/Gemfile.plugins.local" "$OP_DIR/"
-log_success "配置完成"
-
-# 3. 安装依赖
-log_info "步骤 3/3: 安装依赖..."
-cd "$OP_DIR"
-bundle config set without 'development test'
-bundle install --jobs 4 --retry 3
-log_success "依赖安装完成"
-
-# 4. 数据库迁移
-log_info "运行数据库迁移..."
-bundle exec rake db:migrate RAILS_ENV=production
-log_success "数据库迁移完成"
-
-echo ""
-echo "═══════════════════════════════════════════════════════"
-log_success "✅ 增强模块安装完成！"
-echo "═══════════════════════════════════════════════════════"
-echo ""
-echo "📦 已安装模块："
-echo "   ✓ 数据库管理器"
-echo "   ✓ 统计分析"
-echo "   ✓ MS Project 导入导出"
-echo ""
-echo "🚀 重启 OpenProject 后生效"
-echo ""
-
-SCRIPT
-
-        # 创建 README
-        cat > openproject-enhanced-modules/README.md << 'README'
-# OpenProject 增强模块包
-
-## 包含模块
-
-1. **数据库管理器** - 多数据库源管理、备份/恢复
-2. **统计分析** - 项目统计、报表生成
-3. **MS Project 导入导出** - Excel/XML/MS Project 格式支持
-
-## 安装方法
-
-### 方法 A：自动安装（推荐）
-
-```bash
-# 解压
-tar -xzf openproject-enhanced-modules-*.tar.gz
-cd openproject-enhanced-modules
-
-# 运行安装脚本（替换为你的 OpenProject 路径）
-bash INSTALL.sh /app
-# 或
-bash INSTALL.sh /var/www/openproject
-```
-
-### 方法 B：手动安装
-
-```bash
-# 1. 复制模块到 OpenProject 目录
-cp -r modules/* /app/modules/
-
-# 2. 复制配置文件
-cp Gemfile.plugins.local /app/
-
-# 3. 安装依赖
-cd /app
-bundle install
-
-# 4. 数据库迁移
-bundle exec rake db:migrate RAILS_ENV=production
-
-# 5. 重启 OpenProject
-```
-
-## 系统要求
-
-- OpenProject: 15.0.0
-- Ruby: 3.2.x
-- PostgreSQL: 13+
-
-## 验证安装
-
-访问：`http://your-server/admin/plugins`
-
-应该看到三个增强模块已启用。
-
-## 文档
-
-详细文档：https://github.com/hanny-pixa/openproject_enhance
-README
-
-        # 打包
         PACKAGE_NAME="openproject-enhanced-modules-$(date +%Y%m%d-%H%M%S).tar.gz"
         tar -czf "$PACKAGE_NAME" openproject-enhanced-modules/
-        
-        echo ""
-        echo "✅ 打包完成！"
-        echo "包名：$PACKAGE_NAME"
+        echo "Package created: $PACKAGE_NAME"
         du -h "$PACKAGE_NAME"
+        echo "PACKAGE_NAME=$PACKAGE_NAME" >> $GITHUB_ENV
     
     - name: Upload artifact
       uses: actions/upload-artifact@v4
       with:
         name: enhanced-modules-package
-        path: openproject-enhanced-modules-*.tar.gz
+        path: ${{ env.PACKAGE_NAME }}
         retention-days: 90
     
     - name: Summary
       run: |
         echo "==================================="
-        echo "✅ 打包成功！"
+        echo "Package created successfully!"
         echo "==================================="
         echo ""
-        echo "📦 包内容："
-        echo "  - 3 个增强模块"
-        echo "  - 自动安装脚本"
-        echo "  - 安装文档"
+        echo "Download the artifact from the 'Artifacts' section below."
         echo ""
-        echo "📥 下载：查看页面底部的 Artifacts"
-        echo ""
-        echo "🚀 安装："
-        echo "  1. 下载并解压"
-        echo "  2. 运行：bash INSTALL.sh /app"
-        echo ""
+        echo "Installation:"
+        echo "1. Download and extract"
+        echo "2. Run: bash INSTALL.sh /app"
