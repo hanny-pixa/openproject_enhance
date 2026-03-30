@@ -1,0 +1,87 @@
+name: Build OpenProject for Offline Deployment
+
+on:
+  workflow_dispatch:  # 手动触发
+  push:
+    branches:
+      - main
+    paths:
+      - 'modules/**'
+      - 'Gemfile*'
+      - 'frontend/**'
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup Ruby
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: '3.2'
+        bundler-cache: true
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+    
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          libpq-dev \
+          libsqlite3-dev \
+          libffi-dev \
+          libssl-dev \
+          libxml2-dev \
+          libxslt1-dev \
+          libreadline-dev \
+          zlib1g-dev
+    
+    - name: Install Ruby dependencies
+      run: |
+        bundle config set deployment true
+        bundle config set without 'development test'
+        bundle install --jobs 4 --retry 3
+    
+    - name: Install Node dependencies
+      run: |
+        cd frontend
+        npm ci
+    
+    - name: Compile frontend assets
+      run: |
+        cd frontend
+        npm run build
+    
+    - name: Precompile Rails assets
+      run: |
+        bundle exec rake assets:precompile
+        bundle exec rake assets:clean
+    
+    - name: Create deployment package
+      run: |
+        # 创建部署包
+        tar -czf openproject-deploy-$(date +%Y%m%d-%H%M%S).tar.gz \
+          --exclude='.git' \
+          --exclude='tmp/*' \
+          --exclude='log/*' \
+          --exclude='.github/*' \
+          .
+    
+    - name: Upload deployment artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: openproject-deployment
+        path: openproject-deploy-*.tar.gz
+        retention-days: 30
+    
+    - name: Notify completion
+      run: |
+        echo "✅ 编译完成！"
+        echo "产物大小：$(du -h openproject-deploy-*.tar.gz | cut -f1)"
+        echo "下载链接：https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"

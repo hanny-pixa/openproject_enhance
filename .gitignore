@@ -1,0 +1,17 @@
+# 排除大文件和临时文件
+tmp/
+log/
+.cache/
+node_modules/
+vendor/bundle/
+public/assets/*
+!public/assets/.keep
+*.log
+*.pid
+tmp/pids/*
+storage/*
+!storage/.keep
+.DS_Store
+*.swp
+*.swo
+*~

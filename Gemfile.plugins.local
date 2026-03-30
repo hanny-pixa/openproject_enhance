@@ -1,0 +1,11 @@
+# OpenProject 增强模块配置
+# 放置在 Gemfile.plugins.local
+
+# 数据库管理器
+gem 'openproject-database_manager', path: 'modules/openproject_database_manager'
+
+# 统计分析
+gem 'openproject-analytics', path: 'modules/openproject_analytics'
+
+# MS Project 导入导出
+gem 'openproject-msproject_import', path: 'modules/openproject_msproject_import'
